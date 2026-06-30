@@ -63,21 +63,12 @@ $info     = $data['info'] ?? null;
        --ghi-accent: #0e8fd6; --ghi-green: #3db04a; --ghi-red: #e45d5d;
        --ghi-amber: #e6a23c; font-size: 13px; }
 
-.ghi .ghi-searchbar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
-       padding: 16px 18px; background: var(--ghi-soft); border: 1px solid var(--ghi-line);
-       border-radius: 10px; margin-bottom: 18px; }
-.ghi .ghi-field { display: flex; flex-direction: column; gap: 5px; }
-.ghi .ghi-field label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
-       opacity: .7; font-weight: 600; }
-.ghi .ghi-input { padding: 8px 12px; border: 1px solid var(--ghi-line); border-radius: 7px;
-       background: transparent; color: inherit; min-width: 320px; outline: none;
-       transition: border-color .15s, box-shadow .15s; }
-.ghi .ghi-input:focus { border-color: var(--ghi-accent);
-       box-shadow: 0 0 0 3px rgba(14,143,214,.18); }
-.ghi .ghi-btn { padding: 9px 18px; border: 1px solid var(--ghi-accent); border-radius: 7px;
-       background: var(--ghi-accent); color: #fff; font-weight: 600; cursor: pointer;
-       transition: filter .15s; }
-.ghi .ghi-btn:hover { filter: brightness(1.08); }
+/* Barra de pesquisa: wrapper leve; os controles usam estilo NATIVO do Zabbix
+   (CTextBox/CSubmit) para herdar cor, borda, foco e altura do tema. */
+.ghi .ghi-searchbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+       margin-bottom: 18px; }
+.ghi .ghi-searchbar label { font-weight: 600; }
+.ghi .ghi-searchbar input[type="text"] { min-width: 320px; }
 
 .ghi .ghi-note { padding: 14px 16px; border-radius: 9px; border: 1px solid var(--ghi-line);
        background: var(--ghi-soft); }
@@ -168,21 +159,35 @@ $info     = $data['info'] ?? null;
 
 <div class="ghi">
 
-	<form method="get" action="zabbix.php" class="ghi-searchbar" autocomplete="off">
-		<input type="hidden" name="action" value="gethostinfo.view">
-		<div class="ghi-field">
-			<label for="ghi-host"><?= _('Host') ?></label>
-			<input class="ghi-input" id="ghi-host" list="ghi-hostlist" type="text"
-			       name="host" value="<?= gethostinfo_e($search) ?>"
-			       placeholder="<?= _('Technical name or display name...') ?>">
-			<datalist id="ghi-hostlist">
-<?php foreach ($datalist as $name): ?>
-				<option value="<?= gethostinfo_e($name) ?>"></option>
-<?php endforeach; ?>
-			</datalist>
-		</div>
-		<button type="submit" class="ghi-btn"><?= _('Search host') ?></button>
-	</form>
+<?php
+	// Datalist (autocomplete) com todos os hosts visiveis ao usuario.
+	$datalist_options = '';
+	foreach ($datalist as $name) {
+		$datalist_options .= '<option value="'.gethostinfo_e($name).'"></option>';
+	}
+
+	// Controles NATIVOS do Zabbix -> herdam exibicao/cor/foco do tema.
+	$host_box = (new CTextBox('host', $search))
+		->setId('ghi-host')
+		->setAttribute('list', 'ghi-hostlist')
+		->setAttribute('placeholder', _('Technical name or display name...'))
+		->setAttribute('autocomplete', 'off');
+
+	$search_form = (new CForm('get', 'zabbix.php'))
+		->cleanItems()
+		->addItem(new CVar('action', 'gethostinfo.view'))
+		->addItem(
+			(new CDiv([
+				new CLabel(_('Host'), 'ghi-host'),
+				$host_box,
+				new CSubmit('', _('Search host'))
+			]))->addClass('ghi-searchbar')
+		);
+
+	$search_form->show();
+?>
+	<datalist id="ghi-hostlist"><?= $datalist_options ?></datalist>
+
 
 <?php if ($state === 'multiple'): ?>
 	<div class="ghi-note warn">
