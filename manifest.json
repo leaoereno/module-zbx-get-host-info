@@ -1,0 +1,17 @@
+{
+    "manifest_version": 2,
+    "id": "module-zbx-get-host-info",
+    "name": "Get Host Info (read-only)",
+    "version": "7.0.0",
+    "namespace": "GetHostInfo",
+    "author": "Rafael M. A. Leão Ereno - MALE",
+    "url": "https://github.com/leaoereno/module-zbx-get-host-info",
+    "description": "Consulta read-only da configuracao completa de um host (geral, macros, inventario, itens, triggers). Porte para Zabbix 7.0 LTS do modulo get-host-ro de Mickael Martin.",
+    "actions": {
+        "gethostinfo.view": {
+            "class": "GetHostInfoView",
+            "layout": "layout.htmlpage",
+            "view": "gethostinfo.view"
+        }
+    }
+}
