@@ -61,7 +61,9 @@ $info     = $data['info'] ?? null;
 .ghi { --ghi-line: rgba(127,127,127,.22); --ghi-soft: rgba(127,127,127,.06);
        --ghi-soft2: rgba(127,127,127,.11); --ghi-hover: rgba(127,127,127,.09);
        --ghi-accent: #0e8fd6; --ghi-green: #3db04a; --ghi-red: #e45d5d;
-       --ghi-amber: #e6a23c; font-size: 13px; }
+       --ghi-amber: #e6a23c; font-size: 13px;
+       /* respiro entre a sidebar nativa e o conteudo do modulo */
+       padding: 10px 18px 24px 24px; box-sizing: border-box; }
 
 /* Barra de pesquisa: wrapper leve; os controles usam estilo NATIVO do Zabbix
    (CTextBox/CSubmit) para herdar cor, borda, foco e altura do tema. */
