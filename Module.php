@@ -16,6 +16,8 @@ use Zabbix\Core\CModule;
 class Module extends CModule {
 
 	public function init(): void {
+		// Guard umbrella Ferramentas
+		if (defined('ZBX_FERRAMENTAS_ACTIVE') && ZBX_FERRAMENTAS_ACTIVE === true) { return; }
 		// O acesso ao menu pode falhar em contextos sem UI (CLI, setup).
 		// Envolver em try/catch evita derrubar o frontend inteiro.
 		try {
