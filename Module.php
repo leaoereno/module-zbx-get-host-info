@@ -28,8 +28,7 @@ class Module extends CModule {
 				$submenu = $monitoring->getSubmenu();
 
 				$item = (new \CMenuItem(_('Host info (read-only)')))
-					->setAction('gethostinfo.view')
-					->setIcon('zi-search');
+					->setAction('gethostinfo.view');
 
 				// insertAfter pode nao achar a ancora dependendo da versao/layout;
 				// nesse caso caimos no add() simples.
