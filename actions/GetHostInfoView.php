@@ -48,22 +48,40 @@ class GetHostInfoView extends CAction {
 
 		$data = [
 			'search'         => $search,
-			'hosts_datalist' => $this->getHostsDatalist(),
-			'state'          => 'empty',   // empty | multiple | none | found
-			'info'           => null
+			'hosts_datalist' => [],
+			'state'          => 'empty',   // empty | multiple | none | found | error
+			'info'           => null,
+			'error'          => null
 		];
+
+		// A lista de autocomplete e cosmetica: se falhar, a busca continua
+		// funcionando normalmente, so perde a sugestao de nomes.
+		try {
+			$data['hosts_datalist'] = $this->getHostsDatalist();
+		}
+		catch (\Throwable $e) {
+			$data['hosts_datalist'] = [];
+		}
 
 		if ($search === '') {
 			$this->respond($data);
 			return;
 		}
 
-		// Resolve o host pelo nome tecnico OU display name.
-		$matches = \API::Host()->get([
-			'output'      => ['hostid'],
-			'filter'      => ['host' => $search, 'name' => $search],
-			'searchByAny' => true
-		]);
+		try {
+			// Resolve o host pelo nome tecnico OU display name.
+			$matches = \API::Host()->get([
+				'output'      => ['hostid'],
+				'filter'      => ['host' => $search, 'name' => $search],
+				'searchByAny' => true
+			]);
+		}
+		catch (\Throwable $e) {
+			$data['state'] = 'error';
+			$data['error'] = $e->getMessage();
+			$this->respond($data);
+			return;
+		}
 
 		if (count($matches) === 0) {
 			$data['state'] = 'none';
@@ -80,8 +98,18 @@ class GetHostInfoView extends CAction {
 
 		$hostid = $matches[0]['hostid'];
 
-		$data['state'] = 'found';
-		$data['info']  = $this->collectHostInfo($hostid);
+		try {
+			$data['state'] = 'found';
+			$data['info']  = $this->collectHostInfo($hostid);
+		}
+		catch (\Throwable $e) {
+			// Host pode ter sido removido entre o get() acima e a coleta,
+			// ou uma sub-chamada de API falhou (permissao, timeout, etc.).
+			// Mostra um card de erro em vez de derrubar a pagina inteira.
+			$data['state'] = 'error';
+			$data['error'] = $e->getMessage();
+			$data['info']  = null;
+		}
 
 		$this->respond($data);
 	}
@@ -92,11 +120,22 @@ class GetHostInfoView extends CAction {
 	}
 
 	/**
+	 * Limite de seguranca para o <datalist> de autocomplete. Em ambientes com
+	 * dezenas de milhares de hosts, carregar a lista inteira em toda
+	 * requisicao infla o HTML desnecessariamente; acima do limite a busca
+	 * exata (input livre) continua funcionando normalmente, so o
+	 * autocomplete fica incompleto.
+	 */
+	private const DATALIST_LIMIT = 3000;
+
+	/**
 	 * Lista de nomes para o autocomplete (host tecnico + display name).
 	 */
 	private function getHostsDatalist(): array {
 		$hosts = \API::Host()->get([
-			'output' => ['host', 'name']
+			'output'    => ['host', 'name'],
+			'sortfield' => 'host',
+			'limit'     => self::DATALIST_LIMIT
 		]);
 
 		$names = [];
@@ -111,6 +150,45 @@ class GetHostInfoView extends CAction {
 		sort($names, SORT_NATURAL | SORT_FLAG_CASE);
 
 		return $names;
+	}
+
+	/**
+	 * Nomes e cores de severidade padrao do Zabbix (fallback quando
+	 * settings.get falha ou foi revogado na role do usuario atual).
+	 */
+	private const DEFAULT_SEVERITY_NAMES = [
+		0 => 'Not classified', 1 => 'Information', 2 => 'Warning',
+		3 => 'Average', 4 => 'High', 5 => 'Disaster'
+	];
+	private const DEFAULT_SEVERITY_COLORS = [
+		0 => '97AAB3', 1 => '7499FF', 2 => 'FFC859',
+		3 => 'FFA059', 4 => 'E97659', 5 => 'E45959'
+	];
+
+	private function getSeveritySettings(): array {
+		try {
+			$settings = \API::Settings()->get([
+				'output' => ['severity_color_0', 'severity_color_1', 'severity_color_2',
+				             'severity_color_3', 'severity_color_4', 'severity_color_5',
+				             'severity_name_0', 'severity_name_1', 'severity_name_2',
+				             'severity_name_3', 'severity_name_4', 'severity_name_5']
+			]);
+
+			if ($settings) {
+				return $settings;
+			}
+		}
+		catch (\Throwable $e) {
+			// segue para o fallback abaixo
+		}
+
+		$fallback = [];
+		foreach (self::DEFAULT_SEVERITY_NAMES as $prio => $name) {
+			$fallback['severity_name_'.$prio]  = $name;
+			$fallback['severity_color_'.$prio] = self::DEFAULT_SEVERITY_COLORS[$prio];
+		}
+
+		return $fallback;
 	}
 
 	/**
@@ -130,11 +208,20 @@ class GetHostInfoView extends CAction {
 			'selectTags'            => ['tag', 'value', 'automatic']
 		]);
 
+		if (!$hosts) {
+			// Host removido/perdeu permissao entre o get() de resolucao e
+			// esta coleta. Lanca para o catch generico em doAction() em vez
+			// de deixar $host = null cascatear em avisos silenciosos.
+			throw new \RuntimeException('Host not found or no longer accessible.');
+		}
+
 		$host = $hosts[0];
 
 		// --- Proxy (7.0: host.proxyid + proxy.name) -----------------------
+		// !empty() ja cobre '0'/''/null; o proxyid so chega vazio quando o
+		// host nao tem proxy atribuido.
 		$proxy_name = null;
-		if (!empty($host['proxyid']) && $host['proxyid'] !== '0') {
+		if (!empty($host['proxyid'])) {
 			$proxies = \API::Proxy()->get([
 				'proxyids' => [$host['proxyid']],
 				'output'   => ['name']
@@ -144,13 +231,12 @@ class GetHostInfoView extends CAction {
 			}
 		}
 
-		// --- Cores e nomes de severidade ----------------------------------
-		$settings = \API::Settings()->get([
-			'output' => ['severity_color_0', 'severity_color_1', 'severity_color_2',
-			             'severity_color_3', 'severity_color_4', 'severity_color_5',
-			             'severity_name_0', 'severity_name_1', 'severity_name_2',
-			             'severity_name_3', 'severity_name_4', 'severity_name_5']
-		]);
+		// --- Cores e nomes de severidade ------------------------------------
+		// settings.get e liberado para qualquer tipo de usuario por padrao,
+		// mas o metodo pode ser revogado numa role customizada. Sem
+		// try/catch, isso derrubaria a tela inteira so por causa da
+		// severidade das triggers -> cai para a paleta padrao do Zabbix.
+		$settings = $this->getSeveritySettings();
 
 		// --- Itens --------------------------------------------------------
 		$items_raw = \API::Item()->get([

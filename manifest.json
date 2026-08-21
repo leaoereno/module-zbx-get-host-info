@@ -2,7 +2,7 @@
     "manifest_version": 2,
     "id": "module-zbx-get-host-info",
     "name": "Get Host Info (read-only)",
-    "version": "7.0.0",
+    "version": "7.1.0",
     "namespace": "GetHostInfo",
     "author": "Rafael M. A. Leão Ereno - MALE",
     "url": "https://github.com/leaoereno/module-zbx-get-host-info",

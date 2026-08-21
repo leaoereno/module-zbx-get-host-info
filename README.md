@@ -12,7 +12,7 @@ Mickael Martin (Cyres).
 | | |
 |---|---|
 | **ID** | `module-zbx-get-host-info` |
-| **Versão** | `7.0.0` |
+| **Versão** | `7.1.0` |
 | **Compatibilidade** | Zabbix 7.0 LTS |
 | **Namespace** | `GetHostInfo` |
 | **Action** | `gethostinfo.view` |
@@ -76,6 +76,34 @@ array já normalizado; a **view** apenas renderiza. JS/CSS 100% inline — sem
 arquivos `.js`/`.css` estáticos (compatível com F5 BIG-IP, que os bloqueia).
 
 ## Changelog
+
+### 7.1.0
+- UI/UX: migração completa da paleta customizada (`--ghi-*`) para os tokens
+  canônicos do design system dos módulos (`--c-*`), reutilizados em `.badge`,
+  `.card`, `.pill`, `.empty`, tabelas e barra de filtro.
+- UI/UX: título de página com emoji (📋) e ícone `zi-search` no item de menu,
+  seguindo a convenção `zi-*` no menu / emoji nas views.
+- UI/UX: estados de host não encontrado / múltiplos resultados / erro agora
+  usam o componente canônico `.empty` (ícone + título + descrição), com texto
+  em PT-BR (convenção: rótulos estruturais em inglês, mensagens ao usuário em
+  português).
+- UI/UX: novo estado `error` — falhas de API (permissão revogada, host removido
+  entre a busca e a coleta, etc.) mostram um card de erro em vez de deixar a
+  página quebrar.
+- Correção: `API::Settings()->get()` (cores/nomes de severidade) agora tem
+  fallback para a paleta padrão do Zabbix quando o método `settings.get` foi
+  revogado numa role customizada — antes, isso derrubava a tela inteira sem
+  mensagem clara.
+- Correção: coleta do host (`collectHostInfo`) agora trata o caso em que o
+  host some entre a resolução do nome e a busca detalhada (ex.: removido por
+  outro usuário durante a navegação), lançando um erro tratado em vez de
+  cascatear avisos com `$host = null`.
+- Correção: checagem redundante de `proxyid !== '0'` removida (`!empty()` já
+  cobre o caso).
+- Melhoria: `<datalist>` de autocomplete agora tem limite de segurança
+  (3000 hosts) e é resiliente a falha da API — se o autocomplete falhar, a
+  busca exata continua funcionando normalmente.
+- Melhoria: removida variável JS não utilizada (`root`) no script inline.
 
 ### 7.0.0
 - Porte completo para o padrão MVC do Zabbix 7.0 (lógica no controller).

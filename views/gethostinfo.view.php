@@ -5,11 +5,16 @@
  * SOMENTE renderizacao. Toda a coleta de dados acontece no controller
  * (actions/GetHostInfoView.php). Todo dado externo passa por escape.
  *
+ * Paleta/componentes seguem o design system canonico dos modulos
+ * (tokens --c-*, .badge, .card, .tbl, .empty) — ver
+ * references/ui-design-system.md na skill zabbix-module-dev.
+ *
  * $data:
  *   string       search
  *   array        hosts_datalist
- *   string       state         empty|none|multiple|found
+ *   string       state         empty|none|multiple|found|error
  *   int          match_count   (quando state=multiple)
+ *   string|null  error         (quando state=error)
  *   array|null   info
  */
 
@@ -55,111 +60,133 @@ $search   = (string)($data['search'] ?? '');
 $state    = (string)($data['state'] ?? 'empty');
 $datalist = $data['hosts_datalist'] ?? [];
 $info     = $data['info'] ?? null;
+$error    = $data['error'] ?? null;
 ?>
 <style>
-/* ====== Get Host Info — escopo .ghi ====== */
-.ghi { --ghi-line: rgba(127,127,127,.22); --ghi-soft: rgba(127,127,127,.06);
-       --ghi-soft2: rgba(127,127,127,.11); --ghi-hover: rgba(127,127,127,.09);
-       --ghi-accent: #0e8fd6; --ghi-green: #3db04a; --ghi-red: #e45d5d;
-       --ghi-amber: #e6a23c; font-size: 13px;
+/* ====== Get Host Info — tokens canonicos do design system, escopo .ghi ====== */
+.ghi { --c-bg:#f4f6f9; --c-card:#fff; --c-border:#dde3ec;
+       --c-accent:#1565c0; --c-accent-light:#e8f0fe; --c-accent-hover:#0d47a1;
+       --c-text:#1a1f36; --c-muted:#6b7a99;
+       --c-success:#1b7e47; --c-success-bg:#e8f5e9;
+       --c-danger:#b71c1c;  --c-danger-bg:#fff5f5; --c-danger-border:#f5c6c6;
+       --c-warn:#bf6000;    --c-warn-bg:#fff8e1;    --c-warn-border:#ffe082;
+       --c-shadow:0 1px 4px rgba(0,0,0,.08);
+       --c-shadow-md:0 4px 6px rgba(0,0,0,.05),0 2px 4px rgba(0,0,0,.04);
+       font-size: 13px;
        /* respiro entre a sidebar nativa e o conteudo do modulo */
-       padding: 10px 18px 24px 24px; box-sizing: border-box; }
+       padding: 10px 18px 24px 24px; }
+.ghi, .ghi *, .ghi *::before, .ghi *::after { box-sizing: border-box; }
+
+.ghi .ghi-title { font-size: 19px; font-weight: 800; color: var(--c-text); margin: 2px 0 16px; }
 
 /* Barra de pesquisa: wrapper leve; os controles usam estilo NATIVO do Zabbix
    (CTextBox/CSubmit) para herdar cor, borda, foco e altura do tema. */
 .ghi .ghi-searchbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
        margin-bottom: 18px; }
-.ghi .ghi-searchbar label { font-weight: 600; }
+.ghi .ghi-searchbar label { font-weight: 600; color: var(--c-text); }
 .ghi .ghi-searchbar input[type="text"] { min-width: 320px; }
 
-.ghi .ghi-note { padding: 14px 16px; border-radius: 9px; border: 1px solid var(--ghi-line);
-       background: var(--ghi-soft); }
-.ghi .ghi-note.warn { border-color: rgba(230,162,60,.5); background: rgba(230,162,60,.08); }
-.ghi .ghi-note.empty { opacity: .75; }
-.ghi .ghi-note a { color: var(--ghi-accent); }
+/* Empty / warning / error states (componente .empty canonico) */
+.ghi .empty { padding: 44px 20px; text-align: center; background: var(--c-card);
+       border: 1px solid var(--c-border); border-radius: 10px; box-shadow: var(--c-shadow); }
+.ghi .empty-icon { font-size: 38px; display: block; margin-bottom: 12px; line-height: 1; }
+.ghi .empty-title { font-size: 15px; font-weight: 700; color: var(--c-text); margin-bottom: 6px; }
+.ghi .empty-desc { font-size: 13px; color: var(--c-muted); }
+.ghi .empty.warn { background: var(--c-warn-bg); border-color: var(--c-warn-border); }
+.ghi .empty.warn .empty-title { color: var(--c-warn); }
+.ghi .empty.err { background: var(--c-danger-bg); border-color: var(--c-danger-border); }
+.ghi .empty.err .empty-title { color: var(--c-danger); }
+.ghi .empty.err .empty-desc { word-break: break-word; }
 
 /* Cabecalho do host */
 .ghi .ghi-hosthead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-       padding: 16px 18px; border: 1px solid var(--ghi-line); border-radius: 10px;
-       background: var(--ghi-soft); margin-bottom: 18px; }
-.ghi .ghi-hosthead h2 { margin: 0; font-size: 20px; font-weight: 700; }
-.ghi .ghi-hosthead .ghi-sub { opacity: .65; font-size: 13px; }
+       padding: 16px 18px; border: 1px solid var(--c-border); border-radius: 10px;
+       background: var(--c-card); box-shadow: var(--c-shadow); margin-bottom: 18px; }
+.ghi .ghi-hosthead h2 { margin: 0; font-size: 20px; font-weight: 700; color: var(--c-text); }
+.ghi .ghi-hosthead .ghi-sub { color: var(--c-muted); font-size: 13px; }
 .ghi .ghi-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-.ghi .ghi-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px;
-       border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--ghi-line);
-       background: var(--ghi-soft2); }
-.ghi .ghi-badge.ok  { color: var(--ghi-green); border-color: rgba(61,176,74,.4);
-       background: rgba(61,176,74,.10); }
-.ghi .ghi-badge.bad { color: var(--ghi-red); border-color: rgba(228,93,93,.4);
-       background: rgba(228,93,93,.10); }
-.ghi .ghi-badge.warnb { color: var(--ghi-amber); border-color: rgba(230,162,60,.45);
-       background: rgba(230,162,60,.12); }
-.ghi .ghi-badge .num { font-weight: 800; }
+
+/* Badges / status pills (canonico) */
+.ghi .badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px;
+       border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.ghi .badge-ok   { background: var(--c-success-bg); color: var(--c-success); }
+.ghi .badge-warn { background: var(--c-warn-bg);    color: var(--c-warn); }
+.ghi .badge-err  { background: var(--c-danger-bg);  color: var(--c-danger); }
+.ghi .badge-info { background: var(--c-accent-light); color: var(--c-accent); }
+.ghi .badge-gray { background: #f1f5f9; color: #64748b; }
+.ghi .badge .num { font-weight: 800; }
 
 /* Grid de cards */
 .ghi .ghi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
        gap: 16px; }
-.ghi .ghi-card { border: 1px solid var(--ghi-line); border-radius: 10px; overflow: hidden;
-       background: var(--ghi-soft); }
-.ghi .ghi-card.span-all { grid-column: 1 / -1; }
-.ghi .ghi-card > summary, .ghi .ghi-cardhead { list-style: none; cursor: pointer;
-       display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-       background: var(--ghi-soft2); font-weight: 700; font-size: 14px; user-select: none; }
-.ghi .ghi-card > summary::-webkit-details-marker { display: none; }
-.ghi .ghi-card > summary::before { content: '▸'; opacity: .55; transition: transform .15s; }
-.ghi .ghi-card[open] > summary::before { transform: rotate(90deg); }
-.ghi .ghi-card .count-pill { margin-left: auto; font-size: 11px; font-weight: 700;
-       padding: 2px 9px; border-radius: 999px; background: var(--ghi-soft2);
-       border: 1px solid var(--ghi-line); opacity: .85; }
-.ghi .ghi-cardbody { padding: 4px 0 6px; }
+.ghi .card { background: var(--c-card); border: 1px solid var(--c-border); border-radius: 10px;
+       box-shadow: var(--c-shadow); overflow: hidden; margin: 0; }
+.ghi .card.span-all { grid-column: 1 / -1; }
+.ghi .card > summary { list-style: none; cursor: pointer;
+       display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+       background: var(--c-bg); border-bottom: 1px solid var(--c-border);
+       font-weight: 700; font-size: 14px; color: var(--c-text); user-select: none; }
+.ghi .card > summary::-webkit-details-marker { display: none; }
+.ghi .card > summary::before { content: '▸'; color: var(--c-muted); transition: transform .15s; }
+.ghi .card[open] > summary::before { transform: rotate(90deg); }
+.ghi .card:not([open]) > summary { border-bottom: none; }
+.ghi .card .count-pill { margin-left: auto; font-size: 11px; font-weight: 700;
+       padding: 2px 9px; border-radius: 999px; background: #fff;
+       border: 1px solid var(--c-border); color: var(--c-muted); }
+.ghi .card-body { padding: 4px 0 6px; }
 
 /* Tabela chave/valor */
 .ghi table.ghi-kv { width: 100%; border-collapse: collapse; }
-.ghi table.ghi-kv th { text-align: left; font-weight: 600; opacity: .8; width: 38%;
-       padding: 8px 16px; vertical-align: top; white-space: nowrap; }
-.ghi table.ghi-kv td { padding: 8px 16px; vertical-align: top; word-break: break-word; }
-.ghi table.ghi-kv tr + tr { border-top: 1px solid var(--ghi-line); }
+.ghi table.ghi-kv th { text-align: left; font-weight: 600; color: var(--c-muted); width: 38%;
+       padding: 8px 18px; vertical-align: top; white-space: nowrap; }
+.ghi table.ghi-kv td { padding: 8px 18px; vertical-align: top; word-break: break-word; color: var(--c-text); }
+.ghi table.ghi-kv tr + tr th, .ghi table.ghi-kv tr + tr td { border-top: 1px solid #f1f5f9; }
 .ghi table.ghi-kv ul { margin: 0; padding-left: 18px; }
 .ghi table.ghi-kv li { margin: 1px 0; }
 
-/* Tabela de dados (itens, triggers, macros) */
-.ghi .ghi-toolbar { display: flex; justify-content: flex-end; padding: 8px 14px 10px; }
-.ghi .ghi-filter { padding: 6px 11px 6px 30px; border: 1px solid var(--ghi-line);
-       border-radius: 7px; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E") no-repeat 8px center / 15px;
-       color: inherit; min-width: 220px; outline: none; }
-.ghi .ghi-filter:focus { border-color: var(--ghi-accent); }
+/* Tabela de dados (itens, triggers, macros) — variante do .tbl canonico */
+.ghi .ghi-toolbar { display: flex; justify-content: flex-end; padding: 10px 14px;
+       background: var(--c-bg); border-bottom: 1px solid var(--c-border); }
+.ghi .ghi-filter { padding: 6px 11px 6px 30px; border: 1px solid var(--c-border);
+       border-radius: 7px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7a99' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E") no-repeat 8px center / 15px;
+       color: var(--c-text); min-width: 220px; outline: none; font-size: 13px; }
+.ghi .ghi-filter:focus { border-color: var(--c-accent); outline: 2px solid var(--c-accent-light); }
 .ghi .ghi-tablewrap { overflow-x: auto; }
 .ghi table.ghi-data { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.ghi table.ghi-data thead th { position: sticky; top: 0; text-align: left; font-weight: 700;
-       padding: 9px 14px; background: var(--ghi-soft2); border-bottom: 1px solid var(--ghi-line);
-       cursor: pointer; white-space: nowrap; }
+.ghi table.ghi-data thead th { position: sticky; top: 0; text-align: left;
+       font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+       padding: 9px 14px; background: var(--c-bg); color: var(--c-muted);
+       border-bottom: 2px solid var(--c-border); cursor: pointer; white-space: nowrap; }
 .ghi table.ghi-data thead th[data-nosort] { cursor: default; }
 .ghi table.ghi-data thead th .arrow { opacity: .4; font-size: 10px; margin-left: 4px; }
 .ghi table.ghi-data thead th.sort-asc .arrow,
-.ghi table.ghi-data thead th.sort-desc .arrow { opacity: 1; }
-.ghi table.ghi-data tbody td { padding: 8px 14px; border-bottom: 1px solid var(--ghi-line);
-       vertical-align: top; word-break: break-word; }
-.ghi table.ghi-data tbody tr:hover td { background: var(--ghi-hover); }
-.ghi table.ghi-data code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-       font-size: 12px; }
-.ghi .ghi-empty-row td { text-align: center; opacity: .6; padding: 18px; }
+.ghi table.ghi-data thead th.sort-desc .arrow { opacity: 1; color: var(--c-accent); }
+.ghi table.ghi-data tbody td { padding: 8px 14px; border-bottom: 1px solid #f1f5f9;
+       vertical-align: top; word-break: break-word; color: var(--c-text); }
+.ghi table.ghi-data tbody tr:hover td { background: #fafbff; }
+.ghi table.ghi-data code { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+       font-size: 12px; color: var(--c-muted); }
+.ghi .ghi-empty-row td { text-align: center; color: var(--c-muted); padding: 18px; }
 
 /* Pills de estado */
 .ghi .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px;
        font-weight: 700; }
-.ghi .pill.green { color: var(--ghi-green); background: rgba(61,176,74,.12); }
-.ghi .pill.red   { color: var(--ghi-red);   background: rgba(228,93,93,.12); }
-.ghi .pill.grey  { opacity: .7; background: var(--ghi-soft2); }
+.ghi .pill.green { color: var(--c-success); background: var(--c-success-bg); }
+.ghi .pill.red   { color: var(--c-danger);  background: var(--c-danger-bg); }
+.ghi .pill.grey  { color: var(--c-muted);   background: #f1f5f9; }
 .ghi .sev { display: inline-block; padding: 2px 10px; border-radius: 6px; font-weight: 700;
        font-size: 11px; border-left: 4px solid currentColor; }
 .ghi .ghi-tagchip { display: inline-block; padding: 2px 8px; margin: 2px; border-radius: 5px;
-       font-size: 11px; background: var(--ghi-soft2); border: 1px solid var(--ghi-line); }
-.ghi .secret { opacity: .55; font-style: italic; }
+       font-size: 11px; background: var(--c-accent-light); color: var(--c-accent);
+       border: 1px solid var(--c-border); }
+.ghi .secret { color: var(--c-muted); font-style: italic; }
 .ghi .help { cursor: help; border-bottom: 1px dotted currentColor; }
-.ghi .trig-count { color: var(--ghi-accent); font-weight: 700; }
+.ghi .trig-count { color: var(--c-accent); font-weight: 700; }
 </style>
 
 <div class="ghi">
+
+<div class="ghi-title">📋 <?= _('Host info (read-only)') ?></div>
 
 <?php
 	// Datalist (autocomplete) com todos os hosts visiveis ao usuario.
@@ -191,19 +218,35 @@ $info     = $data['info'] ?? null;
 	<datalist id="ghi-hostlist"><?= $datalist_options ?></datalist>
 
 
-<?php if ($state === 'multiple'): ?>
-	<div class="ghi-note warn">
-		<?= sprintf(_('The pattern "%1$s" returned %2$d hosts. Refine your search and try again.'),
-			gethostinfo_e($search), (int)($data['match_count'] ?? 0)) ?>
+<?php if ($state === 'error'): ?>
+	<div class="empty err">
+		<span class="empty-icon">⚠️</span>
+		<div class="empty-title"><?= _('Não foi possível carregar os dados do host') ?></div>
+		<div class="empty-desc"><?= gethostinfo_e($error ?? _('Erro desconhecido. Tente novamente em instantes.')) ?></div>
+	</div>
+<?php elseif ($state === 'multiple'): ?>
+	<div class="empty warn">
+		<span class="empty-icon">👥</span>
+		<div class="empty-title"><?= _('Mais de um host encontrado') ?></div>
+		<div class="empty-desc">
+			<?= sprintf(_('O padrão "%1$s" retornou %2$d hosts. Refine a busca e tente novamente.'),
+				gethostinfo_e($search), (int)($data['match_count'] ?? 0)) ?>
+		</div>
 	</div>
 <?php elseif ($state === 'none'): ?>
-	<div class="ghi-note warn">
-		<?= sprintf(_('The pattern "%s" returned no host. Check your search and try again.'),
-			gethostinfo_e($search)) ?>
+	<div class="empty warn">
+		<span class="empty-icon">🔍</span>
+		<div class="empty-title"><?= _('Nenhum host encontrado') ?></div>
+		<div class="empty-desc">
+			<?= sprintf(_('O padrão "%s" não retornou nenhum host. Verifique a busca e tente novamente.'),
+				gethostinfo_e($search)) ?>
+		</div>
 	</div>
 <?php elseif ($state === 'empty'): ?>
-	<div class="ghi-note empty">
-		<?= _('Type a host technical name or display name above and click "Search host".') ?>
+	<div class="empty">
+		<span class="empty-icon">🔍</span>
+		<div class="empty-title"><?= _('Busque um host') ?></div>
+		<div class="empty-desc"><?= _('Digite o nome técnico ou de exibição do host acima e clique em "Search host".') ?></div>
 	</div>
 <?php elseif ($state === 'found' && $info !== null): ?>
 
@@ -217,37 +260,37 @@ $info     = $data['info'] ?? null;
 			<div class="ghi-sub"><?= gethostinfo_e($info['host']) ?></div>
 		</div>
 		<div class="ghi-badges">
-			<span class="ghi-badge <?= $st_ok ? 'ok' : 'bad' ?>">
-				<?= $st_ok ? _('Monitored') : _('Not monitored') ?>
+			<span class="badge <?= $st_ok ? 'badge-ok' : 'badge-err' ?>">
+				<?= $st_ok ? _('Monitorado') : _('Não monitorado') ?>
 			</span>
 <?php if ($maint): ?>
-			<span class="ghi-badge warnb"><?= _('In maintenance') ?></span>
+			<span class="badge badge-warn"><?= _('Em manutenção') ?></span>
 <?php endif; ?>
-			<span class="ghi-badge"><?= _('Proxy') ?>:&nbsp;<?= gethostinfo_e($info['proxy'] ?? _('none')) ?></span>
-			<span class="ghi-badge"><span class="num"><?= count($info['items']) ?></span>&nbsp;<?= _('items') ?></span>
-			<span class="ghi-badge"><span class="num"><?= count($info['triggers']) ?></span>&nbsp;<?= _('triggers') ?></span>
-			<span class="ghi-badge"><span class="num"><?= count($info['macros']) ?></span>&nbsp;<?= _('macros') ?></span>
+			<span class="badge badge-gray"><?= _('Proxy') ?>:&nbsp;<?= gethostinfo_e($info['proxy'] ?? _('nenhum')) ?></span>
+			<span class="badge badge-info"><span class="num"><?= count($info['items']) ?></span>&nbsp;<?= _('items') ?></span>
+			<span class="badge badge-info"><span class="num"><?= count($info['triggers']) ?></span>&nbsp;<?= _('triggers') ?></span>
+			<span class="badge badge-info"><span class="num"><?= count($info['macros']) ?></span>&nbsp;<?= _('macros') ?></span>
 		</div>
 	</div>
 
 	<div class="ghi-grid">
 
 		<!-- ====== Geral ====== -->
-		<details class="ghi-card" open>
+		<details class="card" open>
 			<summary><?= _('General') ?></summary>
-			<div class="ghi-cardbody">
+			<div class="card-body">
 				<table class="ghi-kv">
 					<tr><th><?= _('Host name') ?></th><td><?= gethostinfo_e($info['host']) ?></td></tr>
 					<tr><th><?= _('Display name') ?></th><td><?= gethostinfo_e($info['name']) ?></td></tr>
 					<tr><th><?= _('Status') ?></th><td>
 						<span class="pill <?= $st_ok ? 'green' : 'red' ?>">
-							<?= $st_ok ? _('Monitored') : _('Not monitored') ?></span>
+							<?= $st_ok ? _('Monitorado') : _('Não monitorado') ?></span>
 					</td></tr>
 					<tr><th><?= _('Maintenance') ?></th><td>
-						<?= $maint ? '<span class="pill red">'._('In maintenance').'</span>'
-						           : '<span class="pill grey">'._('None').'</span>' ?>
+						<?= $maint ? '<span class="pill red">'._('Em manutenção').'</span>'
+						           : '<span class="pill grey">'._('Nenhuma').'</span>' ?>
 					</td></tr>
-					<tr><th><?= _('Proxy') ?></th><td><?= gethostinfo_e($info['proxy'] ?? _('No proxy')) ?></td></tr>
+					<tr><th><?= _('Proxy') ?></th><td><?= gethostinfo_e($info['proxy'] ?? _('Sem proxy')) ?></td></tr>
 					<tr><th><?= _('Description') ?></th><td><?= nl2br(gethostinfo_e($info['description'])) ?></td></tr>
 					<tr><th><?= _('Interfaces') ?></th><td>
 <?php if ($info['interfaces']): ?>
@@ -265,7 +308,7 @@ $info     = $data['info'] ?? null;
 <?php endforeach; ?>
 						</ul>
 <?php else: ?>
-						<span class="secret"><?= _('No interfaces') ?></span>
+						<span class="secret"><?= _('Sem interfaces') ?></span>
 <?php endif; ?>
 					</td></tr>
 					<tr><th><?= _('Groups') ?></th><td>
@@ -298,12 +341,12 @@ $info     = $data['info'] ?? null;
 		</details>
 
 		<!-- ====== Macros ====== -->
-		<details class="ghi-card" open>
+		<details class="card" open>
 			<summary><?= _('Macros') ?><span class="count-pill"><?= count($info['macros']) ?></span></summary>
-			<div class="ghi-cardbody">
+			<div class="card-body">
 				<div class="ghi-toolbar">
 					<input class="ghi-filter" type="text" data-filter="tbl-macros"
-					       placeholder="<?= _('Filter macros...') ?>">
+					       placeholder="<?= _('Filtrar macros...') ?>">
 				</div>
 				<div class="ghi-tablewrap">
 					<table class="ghi-data" id="tbl-macros" data-sortable>
@@ -317,13 +360,13 @@ $info     = $data['info'] ?? null;
 							<tr>
 								<td><code><?= gethostinfo_e($m['macro']) ?></code></td>
 								<td><?= $m['is_secret']
-									? '<span class="secret">*** '._('secret').' ***</span>'
+									? '<span class="secret">*** '._('secreta').' ***</span>'
 									: '<code>'.gethostinfo_e($m['value']).'</code>' ?></td>
 								<td><?= gethostinfo_e($m['description']) ?></td>
 							</tr>
 <?php endforeach; ?>
 <?php if (!$info['macros']): ?>
-							<tr class="ghi-empty-row"><td colspan="3"><?= _('No macros') ?></td></tr>
+							<tr class="ghi-empty-row"><td colspan="3"><?= _('Nenhuma macro') ?></td></tr>
 <?php endif; ?>
 						</tbody>
 					</table>
@@ -332,9 +375,9 @@ $info     = $data['info'] ?? null;
 		</details>
 
 		<!-- ====== Inventario ====== -->
-		<details class="ghi-card">
+		<details class="card">
 			<summary><?= _('Inventory') ?><span class="count-pill"><?= count($info['inventory']) ?></span></summary>
-			<div class="ghi-cardbody">
+			<div class="card-body">
 <?php if ($info['inventory']): ?>
 				<table class="ghi-kv">
 <?php foreach ($info['inventory'] as $k => $v):
@@ -343,18 +386,18 @@ $info     = $data['info'] ?? null;
 <?php endforeach; ?>
 				</table>
 <?php else: ?>
-				<div style="padding:16px;" class="secret"><?= _('Inventory is empty or disabled.') ?></div>
+				<div style="padding:16px;" class="secret"><?= _('Inventário vazio ou desabilitado.') ?></div>
 <?php endif; ?>
 			</div>
 		</details>
 
 		<!-- ====== Itens ====== -->
-		<details class="ghi-card span-all" open>
+		<details class="card span-all" open>
 			<summary><?= _('Items') ?><span class="count-pill"><?= count($info['items']) ?></span></summary>
-			<div class="ghi-cardbody">
+			<div class="card-body">
 				<div class="ghi-toolbar">
 					<input class="ghi-filter" type="text" data-filter="tbl-items"
-					       placeholder="<?= _('Filter items...') ?>">
+					       placeholder="<?= _('Filtrar itens...') ?>">
 				</div>
 				<div class="ghi-tablewrap">
 					<table class="ghi-data" id="tbl-items" data-sortable>
@@ -387,7 +430,7 @@ $info     = $data['info'] ?? null;
 							</tr>
 <?php endforeach; ?>
 <?php if (!$info['items']): ?>
-							<tr class="ghi-empty-row"><td colspan="8"><?= _('No items') ?></td></tr>
+							<tr class="ghi-empty-row"><td colspan="8"><?= _('Nenhum item') ?></td></tr>
 <?php endif; ?>
 						</tbody>
 					</table>
@@ -396,12 +439,12 @@ $info     = $data['info'] ?? null;
 		</details>
 
 		<!-- ====== Triggers ====== -->
-		<details class="ghi-card span-all" open>
+		<details class="card span-all" open>
 			<summary><?= _('Triggers') ?><span class="count-pill"><?= count($info['triggers']) ?></span></summary>
-			<div class="ghi-cardbody">
+			<div class="card-body">
 				<div class="ghi-toolbar">
 					<input class="ghi-filter" type="text" data-filter="tbl-triggers"
-					       placeholder="<?= _('Filter triggers...') ?>">
+					       placeholder="<?= _('Filtrar triggers...') ?>">
 				</div>
 				<div class="ghi-tablewrap">
 					<table class="ghi-data" id="tbl-triggers" data-sortable>
@@ -427,7 +470,7 @@ $info     = $data['info'] ?? null;
 							</tr>
 <?php endforeach; ?>
 <?php if (!$info['triggers']): ?>
-							<tr class="ghi-empty-row"><td colspan="5"><?= _('No triggers') ?></td></tr>
+							<tr class="ghi-empty-row"><td colspan="5"><?= _('Nenhuma trigger') ?></td></tr>
 <?php endif; ?>
 						</tbody>
 					</table>
@@ -445,8 +488,7 @@ $info     = $data['info'] ?? null;
 (function () {
 	'use strict';
 
-	var root = document.currentScript ? document.currentScript.previousElementSibling : null;
-	// Fallback: opera no documento todo, escopo .ghi.
+	// Escopo .ghi (unico container renderizado por esta view).
 	var scope = document.querySelector('.ghi') || document;
 
 	// ---- Filtro por tabela ----
