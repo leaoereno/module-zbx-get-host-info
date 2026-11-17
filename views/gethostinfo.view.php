@@ -18,13 +18,15 @@
  *   array|null   info
  */
 
+use Modules\GetHostInfo\Lang;
+
 if (!function_exists('gethostinfo_e')) {
 	function gethostinfo_e($v): string {
 		return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 	}
 }
 
-/** Labels amigaveis para campos de inventario. */
+/** Labels amigaveis (chave EN -> dicionario Lang) para campos de inventario. */
 $inv_labels = [
 	'type' => 'Type', 'type_full' => 'Type (full)', 'name' => 'Name', 'alias' => 'Alias',
 	'os' => 'OS', 'os_full' => 'OS (full)', 'os_short' => 'OS (short)',
@@ -186,7 +188,7 @@ $error    = $data['error'] ?? null;
 
 <div class="ghi">
 
-<div class="ghi-title">📋 <?= _('Host info (read-only)') ?></div>
+<div class="ghi-title">📋 <?= Lang::t('Host info (read-only)') ?></div>
 
 <?php
 	// Datalist (autocomplete) com todos os hosts visiveis ao usuario.
@@ -199,7 +201,7 @@ $error    = $data['error'] ?? null;
 	$host_box = (new CTextBox('host', $search))
 		->setId('ghi-host')
 		->setAttribute('list', 'ghi-hostlist')
-		->setAttribute('placeholder', _('Technical name or display name...'))
+		->setAttribute('placeholder', Lang::t('Technical name or display name...'))
 		->setAttribute('autocomplete', 'off');
 
 	$search_form = (new CForm('get', 'zabbix.php'))
@@ -207,9 +209,9 @@ $error    = $data['error'] ?? null;
 		->addItem(new CVar('action', 'gethostinfo.view'))
 		->addItem(
 			(new CDiv([
-				new CLabel(_('Host'), 'ghi-host'),
+				new CLabel(Lang::t('Host'), 'ghi-host'),
 				$host_box,
-				new CSubmit('', _('Search host'))
+				new CSubmit('', Lang::t('Search host'))
 			]))->addClass('ghi-searchbar')
 		);
 
@@ -221,32 +223,32 @@ $error    = $data['error'] ?? null;
 <?php if ($state === 'error'): ?>
 	<div class="empty err">
 		<span class="empty-icon">⚠️</span>
-		<div class="empty-title"><?= _('Não foi possível carregar os dados do host') ?></div>
-		<div class="empty-desc"><?= gethostinfo_e($error ?? _('Erro desconhecido. Tente novamente em instantes.')) ?></div>
+		<div class="empty-title"><?= Lang::t('Could not load host data') ?></div>
+		<div class="empty-desc"><?= gethostinfo_e($error ?? Lang::t('Unknown error. Try again shortly.')) ?></div>
 	</div>
 <?php elseif ($state === 'multiple'): ?>
 	<div class="empty warn">
 		<span class="empty-icon">👥</span>
-		<div class="empty-title"><?= _('Mais de um host encontrado') ?></div>
+		<div class="empty-title"><?= Lang::t('More than one host found') ?></div>
 		<div class="empty-desc">
-			<?= sprintf(_('O padrão "%1$s" retornou %2$d hosts. Refine a busca e tente novamente.'),
+			<?= Lang::t('The pattern "%1$s" returned %2$d hosts. Refine your search and try again.',
 				gethostinfo_e($search), (int)($data['match_count'] ?? 0)) ?>
 		</div>
 	</div>
 <?php elseif ($state === 'none'): ?>
 	<div class="empty warn">
 		<span class="empty-icon">🔍</span>
-		<div class="empty-title"><?= _('Nenhum host encontrado') ?></div>
+		<div class="empty-title"><?= Lang::t('No host found') ?></div>
 		<div class="empty-desc">
-			<?= sprintf(_('O padrão "%s" não retornou nenhum host. Verifique a busca e tente novamente.'),
+			<?= Lang::t('The pattern "%s" returned no hosts. Check your search and try again.',
 				gethostinfo_e($search)) ?>
 		</div>
 	</div>
 <?php elseif ($state === 'empty'): ?>
 	<div class="empty">
 		<span class="empty-icon">🔍</span>
-		<div class="empty-title"><?= _('Busque um host') ?></div>
-		<div class="empty-desc"><?= _('Digite o nome técnico ou de exibição do host acima e clique em "Search host".') ?></div>
+		<div class="empty-title"><?= Lang::t('Search for a host') ?></div>
+		<div class="empty-desc"><?= Lang::t('Type the host\'s technical or display name above and click "Search host".') ?></div>
 	</div>
 <?php elseif ($state === 'found' && $info !== null): ?>
 
@@ -261,15 +263,15 @@ $error    = $data['error'] ?? null;
 		</div>
 		<div class="ghi-badges">
 			<span class="badge <?= $st_ok ? 'badge-ok' : 'badge-err' ?>">
-				<?= $st_ok ? _('Monitorado') : _('Não monitorado') ?>
+				<?= $st_ok ? Lang::t('Monitored') : Lang::t('Not monitored') ?>
 			</span>
 <?php if ($maint): ?>
-			<span class="badge badge-warn"><?= _('Em manutenção') ?></span>
+			<span class="badge badge-warn"><?= Lang::t('In maintenance') ?></span>
 <?php endif; ?>
-			<span class="badge badge-gray"><?= _('Proxy') ?>:&nbsp;<?= gethostinfo_e($info['proxy'] ?? _('nenhum')) ?></span>
-			<span class="badge badge-info"><span class="num"><?= count($info['items']) ?></span>&nbsp;<?= _('items') ?></span>
-			<span class="badge badge-info"><span class="num"><?= count($info['triggers']) ?></span>&nbsp;<?= _('triggers') ?></span>
-			<span class="badge badge-info"><span class="num"><?= count($info['macros']) ?></span>&nbsp;<?= _('macros') ?></span>
+			<span class="badge badge-gray"><?= Lang::t('Proxy') ?>:&nbsp;<?= gethostinfo_e($info['proxy'] ?? Lang::t('none')) ?></span>
+			<span class="badge badge-info"><span class="num"><?= count($info['items']) ?></span>&nbsp;<?= Lang::t('items') ?></span>
+			<span class="badge badge-info"><span class="num"><?= count($info['triggers']) ?></span>&nbsp;<?= Lang::t('triggers') ?></span>
+			<span class="badge badge-info"><span class="num"><?= count($info['macros']) ?></span>&nbsp;<?= Lang::t('macros') ?></span>
 		</div>
 	</div>
 
@@ -277,22 +279,22 @@ $error    = $data['error'] ?? null;
 
 		<!-- ====== Geral ====== -->
 		<details class="card" open>
-			<summary><?= _('General') ?></summary>
+			<summary><?= Lang::t('General') ?></summary>
 			<div class="card-body">
 				<table class="ghi-kv">
-					<tr><th><?= _('Host name') ?></th><td><?= gethostinfo_e($info['host']) ?></td></tr>
-					<tr><th><?= _('Display name') ?></th><td><?= gethostinfo_e($info['name']) ?></td></tr>
-					<tr><th><?= _('Status') ?></th><td>
+					<tr><th><?= Lang::t('Host name') ?></th><td><?= gethostinfo_e($info['host']) ?></td></tr>
+					<tr><th><?= Lang::t('Display name') ?></th><td><?= gethostinfo_e($info['name']) ?></td></tr>
+					<tr><th><?= Lang::t('Status') ?></th><td>
 						<span class="pill <?= $st_ok ? 'green' : 'red' ?>">
-							<?= $st_ok ? _('Monitorado') : _('Não monitorado') ?></span>
+							<?= $st_ok ? Lang::t('Monitored') : Lang::t('Not monitored') ?></span>
 					</td></tr>
-					<tr><th><?= _('Maintenance') ?></th><td>
-						<?= $maint ? '<span class="pill red">'._('Em manutenção').'</span>'
-						           : '<span class="pill grey">'._('Nenhuma').'</span>' ?>
+					<tr><th><?= Lang::t('Maintenance') ?></th><td>
+						<?= $maint ? '<span class="pill red">'.Lang::t('In maintenance').'</span>'
+						           : '<span class="pill grey">'.Lang::t('None').'</span>' ?>
 					</td></tr>
-					<tr><th><?= _('Proxy') ?></th><td><?= gethostinfo_e($info['proxy'] ?? _('Sem proxy')) ?></td></tr>
-					<tr><th><?= _('Description') ?></th><td><?= nl2br(gethostinfo_e($info['description'])) ?></td></tr>
-					<tr><th><?= _('Interfaces') ?></th><td>
+					<tr><th><?= Lang::t('Proxy') ?></th><td><?= gethostinfo_e($info['proxy'] ?? Lang::t('No proxy')) ?></td></tr>
+					<tr><th><?= Lang::t('Description') ?></th><td><?= nl2br(gethostinfo_e($info['description'])) ?></td></tr>
+					<tr><th><?= Lang::t('Interfaces') ?></th><td>
 <?php if ($info['interfaces']): ?>
 						<ul>
 <?php foreach ($info['interfaces'] as $if):
@@ -308,10 +310,10 @@ $error    = $data['error'] ?? null;
 <?php endforeach; ?>
 						</ul>
 <?php else: ?>
-						<span class="secret"><?= _('Sem interfaces') ?></span>
+						<span class="secret"><?= Lang::t('No interfaces') ?></span>
 <?php endif; ?>
 					</td></tr>
-					<tr><th><?= _('Groups') ?></th><td>
+					<tr><th><?= Lang::t('Groups') ?></th><td>
 <?php if ($info['groups']): ?>
 						<ul>
 <?php foreach ($info['groups'] as $g): ?>
@@ -320,7 +322,7 @@ $error    = $data['error'] ?? null;
 						</ul>
 <?php else: ?><span class="secret">&mdash;</span><?php endif; ?>
 					</td></tr>
-					<tr><th><?= _('Templates') ?></th><td>
+					<tr><th><?= Lang::t('Templates') ?></th><td>
 <?php if ($info['templates']): ?>
 						<ul>
 <?php foreach ($info['templates'] as $tpl): ?>
@@ -329,7 +331,7 @@ $error    = $data['error'] ?? null;
 						</ul>
 <?php else: ?><span class="secret">&mdash;</span><?php endif; ?>
 					</td></tr>
-					<tr><th><?= _('Tags') ?></th><td>
+					<tr><th><?= Lang::t('Tags') ?></th><td>
 <?php if ($info['tags']): ?>
 <?php foreach ($info['tags'] as $t): ?>
 						<span class="ghi-tagchip"><?= gethostinfo_e($t['tag']) ?><?= $t['value'] !== '' ? ': '.gethostinfo_e($t['value']) : '' ?></span>
@@ -342,31 +344,31 @@ $error    = $data['error'] ?? null;
 
 		<!-- ====== Macros ====== -->
 		<details class="card" open>
-			<summary><?= _('Macros') ?><span class="count-pill"><?= count($info['macros']) ?></span></summary>
+			<summary><?= Lang::t('Macros') ?><span class="count-pill"><?= count($info['macros']) ?></span></summary>
 			<div class="card-body">
 				<div class="ghi-toolbar">
 					<input class="ghi-filter" type="text" data-filter="tbl-macros"
-					       placeholder="<?= _('Filtrar macros...') ?>">
+					       placeholder="<?= Lang::t('Filter macros...') ?>">
 				</div>
 				<div class="ghi-tablewrap">
 					<table class="ghi-data" id="tbl-macros" data-sortable>
 						<thead><tr>
-							<th><?= _('Macro') ?> <span class="arrow">↕</span></th>
-							<th><?= _('Value') ?> <span class="arrow">↕</span></th>
-							<th><?= _('Description') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Macro') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Value') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Description') ?> <span class="arrow">↕</span></th>
 						</tr></thead>
 						<tbody>
 <?php foreach ($info['macros'] as $m): ?>
 							<tr>
 								<td><code><?= gethostinfo_e($m['macro']) ?></code></td>
 								<td><?= $m['is_secret']
-									? '<span class="secret">*** '._('secreta').' ***</span>'
+									? '<span class="secret">*** '.Lang::t('secret').' ***</span>'
 									: '<code>'.gethostinfo_e($m['value']).'</code>' ?></td>
 								<td><?= gethostinfo_e($m['description']) ?></td>
 							</tr>
 <?php endforeach; ?>
 <?php if (!$info['macros']): ?>
-							<tr class="ghi-empty-row"><td colspan="3"><?= _('Nenhuma macro') ?></td></tr>
+							<tr class="ghi-empty-row"><td colspan="3"><?= Lang::t('No macros') ?></td></tr>
 <?php endif; ?>
 						</tbody>
 					</table>
@@ -376,40 +378,40 @@ $error    = $data['error'] ?? null;
 
 		<!-- ====== Inventario ====== -->
 		<details class="card">
-			<summary><?= _('Inventory') ?><span class="count-pill"><?= count($info['inventory']) ?></span></summary>
+			<summary><?= Lang::t('Inventory') ?><span class="count-pill"><?= count($info['inventory']) ?></span></summary>
 			<div class="card-body">
 <?php if ($info['inventory']): ?>
 				<table class="ghi-kv">
 <?php foreach ($info['inventory'] as $k => $v):
-	$label = $inv_labels[$k] ?? ucfirst(str_replace('_', ' ', $k)); ?>
+	$label = Lang::t($inv_labels[$k] ?? ucfirst(str_replace('_', ' ', $k))); ?>
 					<tr><th><?= gethostinfo_e($label) ?></th><td><?= nl2br(gethostinfo_e($v)) ?></td></tr>
 <?php endforeach; ?>
 				</table>
 <?php else: ?>
-				<div style="padding:16px;" class="secret"><?= _('Inventário vazio ou desabilitado.') ?></div>
+				<div style="padding:16px;" class="secret"><?= Lang::t('Empty or disabled inventory.') ?></div>
 <?php endif; ?>
 			</div>
 		</details>
 
 		<!-- ====== Itens ====== -->
 		<details class="card span-all" open>
-			<summary><?= _('Items') ?><span class="count-pill"><?= count($info['items']) ?></span></summary>
+			<summary><?= Lang::t('Items') ?><span class="count-pill"><?= count($info['items']) ?></span></summary>
 			<div class="card-body">
 				<div class="ghi-toolbar">
 					<input class="ghi-filter" type="text" data-filter="tbl-items"
-					       placeholder="<?= _('Filtrar itens...') ?>">
+					       placeholder="<?= Lang::t('Filter items...') ?>">
 				</div>
 				<div class="ghi-tablewrap">
 					<table class="ghi-data" id="tbl-items" data-sortable>
 						<thead><tr>
-							<th><?= _('Name') ?> <span class="arrow">↕</span></th>
-							<th><?= _('Key') ?> <span class="arrow">↕</span></th>
-							<th><?= _('Delay') ?> <span class="arrow">↕</span></th>
-							<th><?= _('History') ?> <span class="arrow">↕</span></th>
-							<th><?= _('Trends') ?> <span class="arrow">↕</span></th>
-							<th><?= _('Status') ?> <span class="arrow">↕</span></th>
-							<th><?= _('State') ?> <span class="arrow">↕</span></th>
-							<th data-nosort><?= _('Triggers') ?></th>
+							<th><?= Lang::t('Name') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Key') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Delay') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('History') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Trends') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Status') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('State') ?> <span class="arrow">↕</span></th>
+							<th data-nosort><?= Lang::t('Triggers') ?></th>
 						</tr></thead>
 						<tbody>
 <?php foreach ($info['items'] as $it): ?>
@@ -421,16 +423,16 @@ $error    = $data['error'] ?? null;
 								<td><?= gethostinfo_e($it['history']) ?></td>
 								<td><?= gethostinfo_e($it['trends']) ?></td>
 								<td><span class="pill <?= $it['status'] === 0 ? 'green' : 'red' ?>">
-									<?= $it['status'] === 0 ? _('Enabled') : _('Disabled') ?></span></td>
+									<?= $it['status'] === 0 ? Lang::t('Enabled') : Lang::t('Disabled') ?></span></td>
 								<td><span class="pill <?= $it['state'] === 0 ? 'green' : 'red' ?>">
-									<?= $it['state'] === 0 ? _('Normal') : _('Not supported') ?></span></td>
+									<?= $it['state'] === 0 ? Lang::t('Normal') : Lang::t('Not supported') ?></span></td>
 								<td><?php if ($it['triggers_count'] > 0): ?>
 									<span class="trig-count help" title="<?= gethostinfo_e(implode("\n", $it['triggers_list'])) ?>"><?= (int)$it['triggers_count'] ?></span>
 								<?php else: ?><span class="secret">0</span><?php endif; ?></td>
 							</tr>
 <?php endforeach; ?>
 <?php if (!$info['items']): ?>
-							<tr class="ghi-empty-row"><td colspan="8"><?= _('Nenhum item') ?></td></tr>
+							<tr class="ghi-empty-row"><td colspan="8"><?= Lang::t('No items') ?></td></tr>
 <?php endif; ?>
 						</tbody>
 					</table>
@@ -440,20 +442,20 @@ $error    = $data['error'] ?? null;
 
 		<!-- ====== Triggers ====== -->
 		<details class="card span-all" open>
-			<summary><?= _('Triggers') ?><span class="count-pill"><?= count($info['triggers']) ?></span></summary>
+			<summary><?= Lang::t('Triggers') ?><span class="count-pill"><?= count($info['triggers']) ?></span></summary>
 			<div class="card-body">
 				<div class="ghi-toolbar">
 					<input class="ghi-filter" type="text" data-filter="tbl-triggers"
-					       placeholder="<?= _('Filtrar triggers...') ?>">
+					       placeholder="<?= Lang::t('Filter triggers...') ?>">
 				</div>
 				<div class="ghi-tablewrap">
 					<table class="ghi-data" id="tbl-triggers" data-sortable>
 						<thead><tr>
-							<th><?= _('Name') ?> <span class="arrow">↕</span></th>
-							<th><?= _('Severity') ?> <span class="arrow">↕</span></th>
-							<th data-nosort><?= _('Expression (expanded)') ?></th>
-							<th><?= _('Status') ?> <span class="arrow">↕</span></th>
-							<th><?= _('State') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Name') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('Severity') ?> <span class="arrow">↕</span></th>
+							<th data-nosort><?= Lang::t('Expression (expanded)') ?></th>
+							<th><?= Lang::t('Status') ?> <span class="arrow">↕</span></th>
+							<th><?= Lang::t('State') ?> <span class="arrow">↕</span></th>
 						</tr></thead>
 						<tbody>
 <?php foreach ($info['triggers'] as $tr):
@@ -464,13 +466,13 @@ $error    = $data['error'] ?? null;
 								<td><span class="sev" style="color: <?= gethostinfo_e($sev_color) ?>; background: <?= gethostinfo_e($sev_color) ?>22;"><?= gethostinfo_e($sev_name) ?></span></td>
 								<td><code><?= gethostinfo_e($tr['expression']) ?></code></td>
 								<td><span class="pill <?= $tr['status'] === 0 ? 'green' : 'red' ?>">
-									<?= $tr['status'] === 0 ? _('Enabled') : _('Disabled') ?></span></td>
+									<?= $tr['status'] === 0 ? Lang::t('Enabled') : Lang::t('Disabled') ?></span></td>
 								<td><span class="pill <?= $tr['state'] === 0 ? 'green' : 'red' ?>">
-									<?= $tr['state'] === 0 ? _('Normal') : _('Unknown') ?></span></td>
+									<?= $tr['state'] === 0 ? Lang::t('Normal') : Lang::t('Unknown') ?></span></td>
 							</tr>
 <?php endforeach; ?>
 <?php if (!$info['triggers']): ?>
-							<tr class="ghi-empty-row"><td colspan="5"><?= _('Nenhuma trigger') ?></td></tr>
+							<tr class="ghi-empty-row"><td colspan="5"><?= Lang::t('No triggers') ?></td></tr>
 <?php endif; ?>
 						</tbody>
 					</table>

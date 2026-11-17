@@ -5,6 +5,7 @@ namespace Modules\GetHostInfo\Actions;
 use CController as CAction;
 use CControllerResponseData;
 use CControllerResponseFatal;
+use Modules\GetHostInfo\Lang;
 
 /**
  * Controller: gethostinfo.view
@@ -115,7 +116,7 @@ class GetHostInfoView extends CAction {
 	}
 
 	private function respond(array $data): void {
-		$data['title'] = _('Host info (read-only)');
+		$data['title'] = Lang::t('Host info (read-only)');
 		$this->setResponse(new CControllerResponseData($data));
 	}
 
@@ -184,7 +185,7 @@ class GetHostInfoView extends CAction {
 
 		$fallback = [];
 		foreach (self::DEFAULT_SEVERITY_NAMES as $prio => $name) {
-			$fallback['severity_name_'.$prio]  = $name;
+			$fallback['severity_name_'.$prio]  = Lang::t($name);
 			$fallback['severity_color_'.$prio] = self::DEFAULT_SEVERITY_COLORS[$prio];
 		}
 

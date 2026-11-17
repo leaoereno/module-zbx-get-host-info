@@ -12,7 +12,7 @@ Mickael Martin (Cyres).
 | | |
 |---|---|
 | **ID** | `module-zbx-get-host-info` |
-| **Versão** | `7.1.0` |
+| **Versão** | `7.2.0` |
 | **Compatibilidade** | Zabbix 7.0 LTS |
 | **Namespace** | `GetHostInfo` |
 | **Action** | `gethostinfo.view` |
@@ -25,6 +25,11 @@ Mickael Martin (Cyres).
 - Badges de status, *pills* de enabled/disabled e normal/not-supported.
 - Severidade das triggers com **nome e cor configurados** no Zabbix.
 - Layout adaptável a **tema claro e escuro**.
+- Idioma da interface acompanha automaticamente o idioma do usuário no Zabbix
+  (EN/PT-BR); em PT-BR o módulo é exibido como **"Ciclo de vida do Host"**.
+- Item de menu aparece em **Monitoring/Monitoramento** quando instalado
+  sozinho, ou dentro de **SRE → Troubleshooting/Solução de problemas → Ciclo
+  de vida do Host**, se o menu SRE já existir (criado por outro módulo).
 
 ## Notas de segurança
 
@@ -55,7 +60,9 @@ find module-zbx-get-host-info -type f -name '*.php' -exec chmod 644 {} \;
 
 Depois, na interface: **Administration → General → Modules → Scan directory**,
 e habilite **Get Host Info (read-only)**.
-O item aparece em **Monitoring → Host info (read-only)**.
+O item aparece em **Monitoring → Host info (read-only)** (EN) ou
+**Monitoramento → Ciclo de vida do Host** (PT-BR) — ou dentro de
+**SRE → Troubleshooting**, se esse menu já existir.
 
 > Se as mudanças não refletirem, limpe o OPcache: `systemctl restart php-fpm`.
 
@@ -64,7 +71,8 @@ O item aparece em **Monitoring → Host info (read-only)**.
 ```
 module-zbx-get-host-info/
 ├── manifest.json                 # metadados, roteamento (manifest_version 2)
-├── Module.php                    # CModule — item de menu (try/catch)
+├── Module.php                    # CModule — item de menu (try/catch, SRE-aware)
+├── Lang.php                      # dicionario EN -> PT-BR das strings do modulo
 ├── actions/
 │   └── GetHostInfoView.php       # CController — toda a coleta via API
 └── views/
@@ -76,6 +84,19 @@ array já normalizado; a **view** apenas renderiza. JS/CSS 100% inline — sem
 arquivos `.js`/`.css` estáticos (compatível com F5 BIG-IP, que os bloqueia).
 
 ## Changelog
+
+### 7.2.0
+- i18n: módulo passa a acompanhar o idioma escolhido pelo usuário no Zabbix
+  (`users.lang`/`CWebUser`) em vez de misturar strings fixas em EN e PT-BR.
+  Novo `Lang.php` com dicionário EN → PT-BR (mesmo padrão do
+  `module-zbx-flapping-detector`): em inglês o módulo continua "Host info
+  (read-only)"; em português passa a se chamar **"Ciclo de vida do Host"**
+  (título, item de menu e todas as strings da view/controller).
+- Menu: `Module.php` passa a detectar o menu de topo **"SRE"** (criado por
+  outro módulo, ex. Plantonistas/Flapping Detector). Se existir, o item entra
+  em **SRE → Troubleshooting/Solução de problemas**; se não existir, mantém o
+  comportamento padrão em **Monitoring/Monitoramento** (inalterado para quem
+  já usa o módulo sozinho).
 
 ### 7.1.0
 - UI/UX: migração completa da paleta customizada (`--ghi-*`) para os tokens
